@@ -120,10 +120,13 @@ var winbar_winids: list<number>
 
 var saved_mousemodel: string
 
-var k_map_saved: dict<any>
+var K_map_saved: dict<any>
 var plus_map_saved: dict<any>
 var minus_map_saved: dict<any>
 
+var termdebug_K_map = dict<any>
+var termdebug_plus_map = dict<any>
+var termdebug_minus_map = dict<any>
 
 def InitScriptVariables()
   if exists('g:termdebug_config') && has_key(g:termdebug_config, 'use_prompt')
@@ -194,9 +197,13 @@ def InitScriptVariables()
 
   winbar_winids = []
 
-  k_map_saved = null_dict
-  plus_map_saved = null_dict
-  minus_map_saved = null_dict
+  K_map_saved = maparg('K', 'n', 0, 1)
+  plus_map_saved = maparg('+', 'n', 0, 1)
+  minus_map_saved = maparg('-', 'n', 0, 1)
+
+  termdebug_K_map = {}
+  termdebug_plus_map = {}
+  termdebug_minus_map = {}
 
   if has('menu')
     saved_mousemodel = null_string
@@ -1137,9 +1144,9 @@ def InstallCommands()
   endif
 
   if map
-    k_map_saved = maparg('K', 'n', 0, 1)
-    if !empty(k_map_saved) && !k_map_saved.buffer || empty(k_map_saved)
+    if !empty(K_map_saved) && !K_map_saved.buffer || empty(K_map_saved)
       nnoremap K :Evaluate<CR>
+      termdebug_K_map = maparg('K', 'n', 0, 1)
     endif
   endif
 
@@ -1148,9 +1155,9 @@ def InstallCommands()
     map = get(g:termdebug_config, 'map_plus', 1)
   endif
   if map
-    plus_map_saved = maparg('+', 'n', 0, 1)
     if !empty(plus_map_saved) && !plus_map_saved.buffer || empty(plus_map_saved)
       nnoremap <expr> + $'<Cmd>{v:count1}Up<CR>'
+      termdebug_plus_map = maparg('+', 'n', 0, 1)
     endif
   endif
 
@@ -1159,9 +1166,9 @@ def InstallCommands()
     map = get(g:termdebug_config, 'map_minus', 1)
   endif
   if map
-    minus_map_saved = maparg('-', 'n', 0, 1)
     if !empty(minus_map_saved) && !minus_map_saved.buffer || empty(minus_map_saved)
       nnoremap <expr> - $'<Cmd>{v:count1}Down<CR>'
+      termdebug_minus_map = maparg('-', 'n', 0, 1)
     endif
   endif
 
@@ -1232,39 +1239,52 @@ def DeleteCommands()
   delcommand Var
   delcommand Winbar
 
-  if k_map_saved isnot null_dict
-    if !empty(k_map_saved) && k_map_saved.buffer
-      # pass
-    elseif !empty(k_map_saved) && !k_map_saved.buffer
-      nunmap K
-      mapset(k_map_saved)
-    elseif empty(k_map_saved)
-      silent! nunmap K
-    endif
-    k_map_saved = null_dict
+  # If at this point user_map is not the same as what termdebug set, it means that user
+  # manually changed map during the termdebug session. If that is the case, we leave
+  # the key to what the user set.
+  if !empty(termdebug_K_map)
+      var user_K_map = maparg('K', 'n', 0, 1)
+      var equal_map = true
+      for [key, val] in items(user_K_map)
+         if termdebug_K_map.key !=# user_K_map.key || termdebug_K_map.val !=# user_K_map.val
+           equal_map = false
+           break
+         endif
+      endfor
+
+      if equal_map
+        mapset(K_map_saved)
+      endif
   endif
-  if plus_map_saved isnot null_dict
-    if !empty(plus_map_saved) && plus_map_saved.buffer
-      # pass
-    elseif !empty(plus_map_saved) && !plus_map_saved.buffer
-      nunmap +
-      mapset(plus_map_saved)
-    elseif empty(plus_map_saved)
-      silent! nunmap +
-    endif
-    plus_map_saved = null_dict
+
+  if !empty(termdebug_plus_map)
+      var user_plus_map = maparg('plus', 'n', 0, 1)
+      var equal_map = true
+      for [key, val] in items(user_plus_map)
+         if termdebug_plus_map.key !=# user_plus_map.key || termdebug_plus_map.val !=# user_plus_map.val
+           equal_map = false
+           break
+         endif
+      endfor
+      if equal_map
+        mapset(plus_map_saved)
+      endif
   endif
-  if minus_map_saved isnot null_dict
-    if !empty(minus_map_saved) && minus_map_saved.buffer
-      # pass
-    elseif !empty(minus_map_saved) && !minus_map_saved.buffer
-      nunmap -
-      mapset(minus_map_saved)
-    elseif empty(minus_map_saved)
-      silent! nunmap -
-    endif
-    minus_map_saved = null_dict
+
+  if !empty(termdebug_minus_map)
+      var user_minus_map = maparg('minus', 'n', 0, 1)
+      var equal_map = true
+      for [key, val] in items(user_minus_map)
+         if termdebug_minus_map.key !=# user_minus_map.key || termdebug_minus_map.val !=# user_minus_map.val
+           equal_map = false
+           break
+         endif
+      endfor
+      if equal_map
+        mapset(minus_map_saved)
+      endif
   endif
+
 
   if has('menu')
     # Remove the WinBar entries from all windows where it was added.
